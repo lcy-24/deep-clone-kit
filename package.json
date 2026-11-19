@@ -1,0 +1,46 @@
+{
+  "name": "deep-clone-kit",
+  "version": "1.0.0",
+  "description": "健壮的深拷贝工具：循环引用、Date/RegExp/Map/Set/TypedArray/DataView/ArrayBuffer、Symbol key、不可枚举属性、原型链，全 TypeScript、零依赖",
+  "type": "module",
+  "files": [
+    "dist"
+  ],
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "deep-clone",
+    "deepcopy",
+    "clone",
+    "clone-deep",
+    "circular-reference",
+    "structured-clone",
+    "immutable",
+    "typescript",
+    "interview"
+  ],
+  "author": "jackiechan",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lcy-24/deep-clone-kit.git"
+  },
+  "devDependencies": {
+    "tsup": "^8.3.5",
+    "typescript": "^5.7.2"
+  }
+}
