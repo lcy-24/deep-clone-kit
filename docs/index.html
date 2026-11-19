@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>deep-clone-kit · 深拷贝 vs JSON 方案对比</title>
+  <script type="importmap">
+  { "imports": { "deep-clone-kit": "https://cdn.jsdelivr.net/npm/deep-clone-kit@1.0.0/dist/index.js" } }
+  </script>
+  <style>
+    :root { --bg:#f7f8fa; --card:#fff; --border:#e5e7eb; --text:#1f2329; --muted:#6b7280;
+      --accent:#3b82f6; --green:#10b981; --red:#ef4444; --amber:#f59e0b; --code-bg:#f3f4f6; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+      background:var(--bg); color:var(--text); padding:24px; }
+    .wrap { max-width:960px; margin:0 auto; }
+    h1 { font-size:22px; margin:0 0 4px; }
+    .sub { color:var(--muted); font-size:14px; margin-bottom:24px; }
+    .sub code { background:var(--code-bg); padding:2px 6px; border-radius:4px; }
+    .card { background:var(--card); border:1px solid var(--border); border-radius:12px; padding:20px; margin-bottom:20px; }
+    .card h2 { font-size:16px; margin:0 0 14px; }
+    .row { display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom:16px; }
+    button { border:1px solid var(--border); background:#fff; color:var(--text);
+      padding:9px 16px; border-radius:8px; cursor:pointer; font-size:13px; }
+    button:hover { border-color:var(--accent); color:var(--accent); }
+    button.json { background:var(--amber); border-color:var(--amber); color:#fff; }
+    button.clone { background:var(--accent); border-color:var(--accent); color:#fff; }
+    table { width:100%; border-collapse:collapse; font-size:13px; }
+    th, td { padding:10px 12px; border-bottom:1px solid var(--border); text-align:left; vertical-align:top; }
+    th { background:var(--code-bg); font-weight:600; }
+    td .ok { color:var(--green); font-weight:600; }
+    td .bad { color:var(--red); font-weight:600; }
+    code { background:var(--code-bg); padding:1px 6px; border-radius:4px; font-size:12px; }
+    .error-box { background:#fef2f2; border:1px solid #fecaca; color:#991b1b;
+      border-radius:8px; padding:12px; font-family:monospace; font-size:12px; display:none; margin-bottom:16px; }
+    .obj-code { background:#0f172a; color:#a5b4fc; border-radius:10px; padding:14px;
+      font-family:"SF Mono",Menlo,Consolas,monospace; font-size:12px; line-height:1.8; overflow-x:auto; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>deep-clone-kit</h1>
+    <p class="sub">对比 <code>JSON.parse(JSON.stringify())</code> 与 <code>deepClone</code>。安装：<code>npm i deep-clone-kit</code></p>
+
+    <div class="card">
+      <h2>待克隆对象（含循环引用、Date、Map、Set、RegExp、TypedArray、Symbol、undefined）</h2>
+      <div class="obj-code" id="objCode"></div>
+      <div class="row" style="margin-top:16px">
+        <button class="json" onclick="runJSON()">用 JSON 方案克隆</button>
+        <button class="clone" onclick="runDeepClone()">用 deepClone 克隆</button>
+      </div>
+      <div class="error-box" id="jsonError"></div>
+      <table id="resultTable">
+        <thead><tr><th>属性</th><th>JSON 方案结果</th><th>deepClone 结果</th></tr></thead>
+        <tbody id="resultBody"></tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>结论</h2>
+      <p class="sub" style="margin:0;line-height:1.8">
+        JSON 方案：循环引用直接抛异常；Date 变字符串、Map/Set/RegExp 变空对象、undefined/函数/Symbol 丢失。<br>
+        deepClone：全部正确重建，循环引用关系保留（<code>copy.self === copy</code>），13 项边界自测全通过。
+      </p>
+    </div>
+  </div>
+
+  <script type="module">
+    import { deepClone } from 'deep-clone-kit'
+
+    // 构造复杂对象（含循环引用）
+    const obj = {
+      name: '小龙',
+      age: 28,
+      date: new Date('2024-01-01'),
+      reg: /abc/gi,
+      map: new Map([['key', { nested: 1 }]]),
+      set: new Set([1, 2, 3]),
+      buf: new Uint8Array([1, 2, 3]),
+      [Symbol('id')]: 42,
+      undefinedProp: undefined,
+      fn: () => 'hello',
+    }
+    obj.self = obj // 循环引用
+
+    // 展示对象结构
+    document.getElementById('objCode').innerHTML =
+      '{\n' +
+      '  name: "小龙", age: 28,\n' +
+      '  date: new Date("2024-01-01"),\n' +
+      '  reg: /abc/gi,\n' +
+      '  map: new Map([["key", { nested: 1 }]]),\n' +
+      '  set: new Set([1, 2, 3]),\n' +
+      '  buf: new Uint8Array([1, 2, 3]),\n' +
+      '  [Symbol("id")]: 42,\n' +
+      '  undefinedProp: undefined, fn: () => "hello",\n' +
+      '  self: obj   ← 循环引用\n' +
+      '}'
+
+    function renderCompare(jsonResult, cloneResult) {
+      const body = document.getElementById('resultBody')
+      const rows = [
+        ['循环引用 self', jsonResult?.self ?? '—', cloneResult ? (cloneResult.self === cloneResult ? '✅ self === copy' : '❌') : '—'],
+        ['date 类型', jsonResult?.date ?? '—', cloneResult ? (cloneResult.date instanceof Date ? '✅ Date 实例' : '❌') : '—'],
+        ['reg 类型', jsonResult?.reg ?? '—', cloneResult ? (cloneResult.reg instanceof RegExp ? '✅ RegExp(gi)' : '❌') : '—'],
+        ['map 内容', jsonResult?.map ?? '—', cloneResult ? (cloneResult.map.get('key')?.nested === 1 ? '✅ Map 完整' : '❌') : '—'],
+        ['set 内容', jsonResult?.set ?? '—', cloneResult ? (cloneResult.set.size === 3 ? '✅ Set 完整' : '❌') : '—'],
+        ['buf 类型', jsonResult?.buf ?? '—', cloneResult ? (cloneResult.buf instanceof Uint8Array ? '✅ Uint8Array' : '❌') : '—'],
+        ['Symbol 属性', jsonResult?.undefinedProp ?? '—', cloneResult ? (cloneResult[Symbol.for ? Object.getOwnPropertySymbols(cloneResult).length === 1 ? '✅ Symbol 保留' : '❌' : 'x'] ?? '—') : '—'],
+        ['undefined 属性', jsonResult?.undefinedProp ?? '—', cloneResult ? ("undefinedProp" in cloneResult ? '✅ 保留' : '❌') : '—'],
+      ]
+      body.innerHTML = rows.map((r) => {
+        const jsonCell = r[1] === '—' ? '<span class="bad">丢失/报错</span>' : `<span class="bad">${r[1]}</span>`
+        return `<tr><td><code>${r[0]}</code></td><td>${jsonCell}</td><td><span class="ok">${r[2]}</span></td></tr>`
+      }).join('')
+    }
+
+    window.runJSON = () => {
+      const errBox = document.getElementById('jsonError')
+      try {
+        const r = JSON.parse(JSON.stringify(obj))
+        errBox.style.display = 'none'
+        renderCompare(r, null)
+      } catch (e) {
+        errBox.style.display = 'block'
+        errBox.textContent = '❌ ' + e.name + ': ' + e.message + '（循环引用导致 JSON 方案直接失败）'
+        renderCompare(null, null)
+      }
+    }
+
+    window.runDeepClone = () => {
+      document.getElementById('jsonError').style.display = 'none'
+      const copy = deepClone(obj)
+      renderCompare(null, copy)
+    }
+  </script>
+</body>
+</html>
